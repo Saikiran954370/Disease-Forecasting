@@ -191,7 +191,7 @@ st.markdown("""
     div.stButton > button[key="chat_bubble_btn"] {
         position: fixed !important;
         bottom: 25px !important;
-        right: 25px !important;
+        right: 150px !important; /* Moved left to avoid 'Manage App' button */
         width: 60px !important;
         height: 60px !important;
         border-radius: 50% !important;
@@ -211,7 +211,7 @@ st.markdown("""
     div[data-testid="stVerticalBlock"]:has(div[data-testid="stChatInput"]) {
         position: fixed !important;
         bottom: 95px !important;
-        right: 25px !important;
+        right: 150px !important; /* Moved left to avoid 'Manage App' button */
         width: 380px !important;
         height: 500px !important;
         background: #111827 !important;
@@ -482,17 +482,13 @@ def render_sidebar(data, df_summary, df_trend):
         total_d = len(df_summary)
         ok_d    = df_summary["case_count_1_year_total"].notna().sum()
         st.markdown(f"**{total_d}** diseases tracked")
-        st.markdown(f"**{ok_d}** models ready")
-        st.markdown(f"**300** total models trained")
-
-        st.markdown("---")
         # Initialize chat history and toggle state
         if "messages" not in st.session_state:
             st.session_state.messages = [{"role": "assistant", "content": "Hi! I'm your Gemini 2.5 AI Assistant. How can I help you today?"}]
         if "show_chat" not in st.session_state:
             st.session_state.show_chat = False
 
-        # THE FLOATING BUBBLE (placed in sidebar to keep it rendered)
+        # THE FLOATING BUBBLE (placed in sidebar to keep it rendered, but visible only as a floating element)
         if st.button("💬", key="chat_bubble_btn"):
             st.session_state.show_chat = not st.session_state.show_chat
             st.rerun()
