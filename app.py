@@ -482,64 +482,67 @@ def render_sidebar(data, df_summary, df_trend):
         total_d = len(df_summary)
         ok_d    = df_summary["case_count_1_year_total"].notna().sum()
         st.markdown(f"**{total_d}** diseases tracked")
-        # Initialize chat history and toggle state
-        if "messages" not in st.session_state:
-            st.session_state.messages = [{"role": "assistant", "content": "Hi! I'm your Gemini 2.5 AI Assistant. How can I help you today?"}]
-        if "show_chat" not in st.session_state:
-            st.session_state.show_chat = False
-
-        # THE FLOATING BUBBLE (placed in sidebar to keep it rendered, but visible only as a floating element)
-        if st.button("💬", key="chat_bubble_btn"):
-            st.session_state.show_chat = not st.session_state.show_chat
-            st.rerun()
-
-        # THE FLOATING CHAT WINDOW
-        if st.session_state.show_chat:
-            with st.container():
-                st.markdown("<h4 style='color:white;margin-top:0;'>🤖 AI Assistant</h4>", unsafe_allow_html=True)
-                
-                # Container for scrollable messages
-                chat_placeholder = st.container(height=350)
-                with chat_placeholder:
-                    for msg in st.session_state.messages:
-                        with st.chat_message(msg["role"]):
-                            st.markdown(msg["content"])
-                
-                if prompt := st.chat_input("Ask AI...", key="floating_chat_input"):
-                    st.session_state.messages.append({"role": "user", "content": prompt})
-                    
-                    with st.spinner("Thinking..."):
-                        api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
-                        if api_key:
-                            try:
-                                genai.configure(api_key=api_key)
-                                MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-                                ctx = build_chat_context(data)
-                                full_p = f"{SYSTEM_PROMPT}\n\nContext:\n{ctx}\n\nUser: {prompt}"
-                                
-                                success = False
-                                for m_name in MODELS:
-                                    try:
-                                        m = genai.GenerativeModel(m_name)
-                                        res = m.generate_content(full_p)
-                                        st.session_state.messages.append({"role": "assistant", "content": res.text})
-                                        success = True
-                                        st.rerun()
-                                        break
-                                    except: continue
-                                if not success:
-                                    st.error("AI Busy. Try again later.")
-                            except Exception as e:
-                                st.error(f"Error: {e}")
-                        else:
-                            st.error("API Key missing")
+        st.markdown(f"**{ok_d}** models ready")
 
     return page, selected_cat, horizon
 
 
-def render_floating_chat():
-    """Reserved for potential JS-based overlays."""
-    pass
+
+def render_floating_chat(data):
+    """Render the floating chat bubble and window in the MAIN content area (not the sidebar)."""
+    # Initialize chat state
+    if "messages" not in st.session_state:
+        st.session_state.messages = [{"role": "assistant", "content": "Hi! I'm your Gemini 2.5 AI Assistant. How can I help you today?"}]
+    if "show_chat" not in st.session_state:
+        st.session_state.show_chat = False
+
+    # Floating bubble button — rendered in main area, CSS makes it float
+    if st.button("💬", key="chat_bubble_btn"):
+        st.session_state.show_chat = not st.session_state.show_chat
+        st.rerun()
+
+    # Floating chat window
+    if st.session_state.show_chat:
+        with st.container():
+            st.markdown("<h4 style='color:#1F4E79;margin-top:0;'>🤖 AI Assistant</h4>", unsafe_allow_html=True)
+
+            chat_area = st.container(height=350)
+            with chat_area:
+                for msg in st.session_state.messages:
+                    with st.chat_message(msg["role"]):
+                        st.markdown(msg["content"])
+
+            if prompt := st.chat_input("Ask about trends...", key="floating_chat_input"):
+                st.session_state.messages.append({"role": "user", "content": prompt})
+
+                with st.spinner("Thinking..."):
+                    api_key = st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", ""))
+                    if api_key:
+                        try:
+                            genai.configure(api_key=api_key)
+                            MODELS = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+                            ctx = build_chat_context(data)
+                            full_p = f"{SYSTEM_PROMPT}\n\nContext:\n{ctx}\n\nUser: {prompt}"
+
+                            success = False
+                            last_err = ""
+                            for m_name in MODELS:
+                                try:
+                                    m = genai.GenerativeModel(m_name)
+                                    res = m.generate_content(full_p)
+                                    st.session_state.messages.append({"role": "assistant", "content": res.text})
+                                    success = True
+                                    st.rerun()
+                                    break
+                                except Exception as e_inner:
+                                    last_err = str(e_inner)
+                                    continue
+                            if not success:
+                                st.error(f"Models unavailable: {last_err}")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+                    else:
+                        st.error("API Key missing in Secrets")
 
 
 # ── METRIC CARD HTML ─────────────────────────────────────────────────────────
@@ -969,8 +972,8 @@ def main():
     elif page == "🚨 Alerts":
         page_alerts(data, df_summary, df_trend)
 
-    # Always render the floating chat bubble
-    render_floating_chat()
+    # Always render the floating chat bubble (in main area, not sidebar)
+    render_floating_chat(data)
 
 
 if __name__ == "__main__":
