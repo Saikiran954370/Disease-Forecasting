@@ -198,6 +198,11 @@ st.markdown("""
         border: 1px solid #334155 !important;
         border-radius: 12px !important;
         box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+        color: white !important;
+    }
+    div[data-testid="stExpander"]:has(p:contains("🤖 AI Chat Assistant")) summary p {
+        color: #1F4E79 !important; /* Make title dark and visible */
+        font-weight: 700 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -496,11 +501,13 @@ def render_sidebar(data, df_summary, df_trend):
                                     success = True
                                     st.rerun()
                                     break
-                                except: continue
+                                except Exception as e_inner: 
+                                    last_err = str(e_inner)
+                                    continue
                             if not success:
-                                st.error("AI models currently busy. Please try again.")
+                                st.error(f"Models unavailable. Error: {last_err}")
                         except Exception as e:
-                            st.error(f"Error: {e}")
+                            st.error(f"System Error: {e}")
                     else:
                         st.error("API Key missing in Secrets")
 
