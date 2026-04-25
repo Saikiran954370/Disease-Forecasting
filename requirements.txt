@@ -9,3 +9,5 @@ tqdm>=4.66
 requests>=2.31
 google-generativeai
 python-dotenv
+plotly>=5.18.0
+streamlit>=1.30.0
