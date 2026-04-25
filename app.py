@@ -548,7 +548,8 @@ def render_floating_chat():
 
         try {
             // Talk DIRECTLY to Gemini API (No backend needed!)
-            const apiKey = '""" + os.getenv("GEMINI_API_KEY", "") + """';
+            // We use st.secrets for Cloud deployment and os.getenv for local dev
+            const apiKey = '""" + st.secrets.get("GEMINI_API_KEY", os.getenv("GEMINI_API_KEY", "")) + """';
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             
             const response = await fetch(url, {
