@@ -21,7 +21,7 @@ load_dotenv()
 
 # ── PAGE CONFIG ─────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="Disease Forecasting Dashboard",
+    page_title="CareCast Health Insights",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -187,10 +187,10 @@ st.markdown("""
 # ── FLOATING CHAT IFRAME CSS ─────────────────────────────────────────────────
 st.markdown("""
 <style>
-    /* Make the chat component iframe float at bottom-right */
+    /* Keep the chat component pinned at top-right */
     div[data-testid="stHtml"]:last-of-type {
         position: fixed !important;
-        bottom: 0 !important;
+        top: 70px !important;
         right: 0 !important;
         width: 420px !important;
         height: 570px !important;
@@ -209,7 +209,7 @@ st.markdown("""
 # ── AI CHATBOT CONFIG ────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = """
-You are the Disease Forecasting Dashboard AI Assistant.
+You are the CareCast Health Insights AI Assistant.
 You help users understand the dashboard, its predictions, and hospital capacity planning.
 
 About the dashboard:
@@ -435,7 +435,7 @@ def donut_chart(labels, values, title):
 
 def render_sidebar(data, df_summary, df_trend):
     with st.sidebar:
-        st.markdown("## 🏥 Disease Forecasting")
+        st.markdown("## 🏥 CareCast Health Insights")
         st.markdown("---")
 
         page = st.radio(
@@ -479,7 +479,7 @@ def render_floating_chat(data):
     body {{ background: transparent; overflow: hidden; font-family: 'Inter', sans-serif; }}
 
     .chat-bubble {{
-        position: fixed; bottom: 24px; right: 24px;
+        position: fixed; top: 24px; right: 24px;
         width: 56px; height: 56px; border-radius: 50%;
         background: linear-gradient(135deg, #6366f1, #8b5cf6, #a78bfa);
         border: none; cursor: pointer;
@@ -491,7 +491,7 @@ def render_floating_chat(data):
     .chat-bubble svg {{ width: 26px; height: 26px; fill: white; }}
 
     .chat-window {{
-        position: fixed; bottom: 90px; right: 24px;
+        position: fixed; top: 90px; right: 24px;
         width: 360px; height: 460px;
         background: #0f172a;
         border: 1px solid #334155; border-radius: 16px;
@@ -567,11 +567,11 @@ def render_floating_chat(data):
 
     <div class="chat-window" id="chatWin">
         <div class="chat-header">
-            <h4>🤖 AI Assistant</h4>
+            <h4>🤖 CareCast Assistant</h4>
             <button class="close-btn" onclick="toggleChat()">&times;</button>
         </div>
         <div class="chat-messages" id="chatMsgs">
-            <div class="msg bot">Hi! How can I help you with the disease dashboard today?</div>
+            <div class="msg bot">Hi! How can I help you with the CareCast dashboard today?</div>
         </div>
         <div class="chat-input-area">
             <input type="text" id="chatInp" placeholder="Ask about trends..." onkeypress="if(event.key==='Enter')sendChat()">
@@ -653,26 +653,36 @@ def alert_box(text, level="info"):
 
 # ── PAGES ────────────────────────────────────────────────────────────────────
 
-def page_overview(data, df_summary, df_trend):
-    st.markdown('<div class="page-title">🏥 Disease Forecasting Dashboard</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-subtitle">Machine learning predictions for hospital bed demand, case volumes, and length of stay</div>', unsafe_allow_html=True)
+def metric_columns_for_horizon(horizon: str):
+    return (
+        f"case_count_{horizon}_total",
+        f"bed_days_{horizon}_total",
+        f"avg_los_{horizon}_avg",
+    )
+
+
+def page_overview(data, df_summary, df_trend, horizon):
+    st.markdown('<div class="page-title">🏥 CareCast Health Insights</div>', unsafe_allow_html=True)
+    st.markdown('<div class="page-subtitle">ML-based hospital demand insights for cases, bed utilization, and length of stay</div>', unsafe_allow_html=True)
+
+    cases_col, beds_col, los_col = metric_columns_for_horizon(horizon)
 
     # ── KPI Row ───────────────────────────────────────────────────────────
-    total_cases_1y   = df_summary["case_count_1_year_total"].sum()
-    total_beds_1y    = df_summary["bed_days_1_year_total"].sum()
-    avg_los          = df_summary["avg_los_1_year_avg"].mean()
-    high_demand      = (df_summary["case_count_1_year_total"] > df_summary["case_count_1_year_total"].quantile(0.9)).sum()
-    top_disease      = df_summary.nlargest(1, "case_count_1_year_total")["disease_name"].values[0]
+    total_cases = df_summary[cases_col].sum()
+    total_beds = df_summary[beds_col].sum()
+    avg_los = df_summary[los_col].mean()
+    high_demand = (df_summary[cases_col] > df_summary[cases_col].quantile(0.9)).sum()
+    top_disease = df_summary.nlargest(1, cases_col)["disease_name"].values[0]
     top_disease_short = top_disease[:30] + "…" if len(top_disease) > 30 else top_disease
     avg_mape         = df_summary["case_count_MAPE_%"].mean()
 
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.markdown(metric_card("Total Cases Forecast (1 Year)", f"{int(total_cases_1y):,}", "Across all 100 diseases"), unsafe_allow_html=True)
+        st.markdown(metric_card(f"Total Cases ({horizon.replace('_', ' ').title()})", f"{int(total_cases):,}", "Across filtered diseases"), unsafe_allow_html=True)
     with c2:
-        st.markdown(metric_card("Total Bed-Days Forecast (1 Year)", f"{int(total_beds_1y):,}", "Hospital capacity demand", "orange"), unsafe_allow_html=True)
+        st.markdown(metric_card(f"Total Bed-Days ({horizon.replace('_', ' ').title()})", f"{int(total_beds):,}", "Hospital capacity demand", "orange"), unsafe_allow_html=True)
     with c3:
-        st.markdown(metric_card("Avg Length of Stay", f"{avg_los:.1f} days", "Average across all diseases", "green"), unsafe_allow_html=True)
+        st.markdown(metric_card(f"Avg Length of Stay ({horizon.replace('_', ' ').title()})", f"{avg_los:.1f} days", "Average across filtered diseases", "green"), unsafe_allow_html=True)
     with c4:
         st.markdown(metric_card("Model Accuracy", f"{100 - avg_mape:.0f}%", f"Avg across 100 diseases (MAPE: {avg_mape:.1f}%)", "red"), unsafe_allow_html=True)
 
@@ -682,14 +692,14 @@ def page_overview(data, df_summary, df_trend):
     col_left, col_right = st.columns([2, 1])
 
     with col_left:
-        st.markdown('<div class="section-header">Top 10 Diseases by Forecast Cases (1 Year)</div>', unsafe_allow_html=True)
-        top10 = df_summary.nlargest(10, "case_count_1_year_total")[["disease_name", "case_count_1_year_total", "disease_category"]].dropna()
-        fig = top_n_bar(top10, "case_count_1_year_total", "disease_name", "", color_col="disease_category", n=10)
+        st.markdown(f'<div class="section-header">Top 10 Diseases by Cases ({horizon.replace("_", " ").title()})</div>', unsafe_allow_html=True)
+        top10 = df_summary.nlargest(10, cases_col)[["disease_name", cases_col, "disease_category"]].dropna()
+        fig = top_n_bar(top10, cases_col, "disease_name", "", color_col="disease_category", n=10)
         st.plotly_chart(fig, use_container_width=True)
 
     with col_right:
         st.markdown('<div class="section-header">Cases by Category</div>', unsafe_allow_html=True)
-        cat_totals = df_summary.groupby("disease_category")["case_count_1_year_total"].sum().dropna().nlargest(8)
+        cat_totals = df_summary.groupby("disease_category")[cases_col].sum().dropna().nlargest(8)
         fig2 = donut_chart(cat_totals.index.tolist(), cat_totals.values.tolist(), "")
         st.plotly_chart(fig2, use_container_width=True)
 
@@ -701,8 +711,8 @@ def page_overview(data, df_summary, df_trend):
             st.markdown(f"**{arrow} {name_short}**  `+{row['growth_%']:.1f}%`", unsafe_allow_html=False)
 
     # ── Row 3: Bed demand top 5 ───────────────────────────────────────────
-    st.markdown('<div class="section-header">Top 5 Diseases by 3-Year Bed Demand</div>', unsafe_allow_html=True)
-    top5_beds = df_summary.nlargest(5, "bed_days_3_years_total")[["disease_name", "bed_days_3_years_total", "avg_los_1_year_avg", "case_count_1_year_total", "disease_category"]].dropna()
+    st.markdown(f'<div class="section-header">Top 5 Diseases by Bed Demand ({horizon.replace("_", " ").title()})</div>', unsafe_allow_html=True)
+    top5_beds = df_summary.nlargest(5, beds_col)[["disease_name", beds_col, los_col, cases_col, "disease_category"]].dropna()
 
     cols = st.columns(5)
     colors_list = ["#1F4E79", "#2E75B6", "#C55A11", "#375623", "#7B3F00"]
@@ -712,14 +722,14 @@ def page_overview(data, df_summary, df_trend):
             st.markdown(f"""
             <div style="background:white;border-radius:10px;padding:14px;border-top:4px solid {colors_list[i]};box-shadow:0 2px 6px rgba(0,0,0,0.07);text-align:center">
                 <div style="font-size:11px;color:#6B7280;font-weight:600;text-transform:uppercase;margin-bottom:6px">{name_s}</div>
-                <div style="font-size:22px;font-weight:700;color:{colors_list[i]}">{int(row['bed_days_3_years_total']):,}</div>
-                <div style="font-size:11px;color:#9CA3AF">bed-days (3yr)</div>
-                <div style="font-size:12px;color:#374151;margin-top:6px">LOS: <b>{row['avg_los_1_year_avg']:.1f}d</b></div>
+                <div style="font-size:22px;font-weight:700;color:{colors_list[i]}">{int(row[beds_col]):,}</div>
+                <div style="font-size:11px;color:#9CA3AF">bed-days ({horizon.replace("_", " ")})</div>
+                <div style="font-size:12px;color:#374151;margin-top:6px">LOS: <b>{row[los_col]:.1f}d</b></div>
             </div>
             """, unsafe_allow_html=True)
 
 
-def page_disease_explorer(data, df_summary, horizon):
+def page_disease_explorer(data, df_summary, horizon, selected_cat):
     st.markdown('<div class="page-title">🔍 Disease Explorer</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Select any disease to see its detailed forecast</div>', unsafe_allow_html=True)
 
@@ -729,7 +739,11 @@ def page_disease_explorer(data, df_summary, horizon):
         diseases_available = sorted([
             n for n, info in data.items()
             if "error" not in info.get("models", {}).get("case_count", {})
+            and (selected_cat == "All" or info.get("disease_category", "Unknown") == selected_cat)
         ])
+        if not diseases_available:
+            st.warning("No diseases found for this category. Change the category filter.")
+            return
         default_idx = diseases_available.index("End-stage renal disease (disorder)") if "End-stage renal disease (disorder)" in diseases_available else 0
         selected = st.selectbox("Select Disease", diseases_available, index=default_idx)
 
@@ -799,7 +813,7 @@ def page_disease_explorer(data, df_summary, horizon):
             st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
 
-def page_top_diseases(data, df_summary, selected_cat):
+def page_top_diseases(data, df_summary, selected_cat, horizon):
     st.markdown('<div class="page-title">🏆 Top Diseases</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Rankings by case volume, bed demand, and length of stay</div>', unsafe_allow_html=True)
 
@@ -807,25 +821,26 @@ def page_top_diseases(data, df_summary, selected_cat):
     if selected_cat != "All":
         df = df[df["disease_category"] == selected_cat]
 
+    cases_col, beds_col, los_col = metric_columns_for_horizon(horizon)
     tab1, tab2, tab3 = st.tabs(["📊 Top 3 Quick View", "🔟 Top 10 Detailed", "📋 Full Table"])
 
     with tab1:
-        st.markdown("### Top 3 by Cases (1 Year)")
-        top3 = df.nlargest(3, "case_count_1_year_total").reset_index(drop=True)
+        st.markdown(f"### Top 3 by Cases ({horizon.replace('_', ' ').title()})")
+        top3 = df.nlargest(3, cases_col).reset_index(drop=True)
         badge_classes = ["gold", "silver", "bronze"]
         badge_labels  = ["🥇", "🥈", "🥉"]
         cols = st.columns(3)
         for i, (_, row) in enumerate(top3.iterrows()):
             with cols[i]:
                 name_s = row["disease_name"][:35] + "…" if len(row["disease_name"]) > 35 else row["disease_name"]
-                los_v  = row["avg_los_1_year_avg"]
-                beds_v = row["bed_days_1_year_total"]
+                los_v = row[los_col]
+                beds_v = row[beds_col]
                 st.markdown(f"""
                 <div style="background:white;border-radius:12px;padding:20px;box-shadow:0 3px 10px rgba(0,0,0,0.09);text-align:center;min-height:200px">
                     <div style="font-size:36px;margin-bottom:8px">{badge_labels[i]}</div>
                     <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:12px">{name_s}</div>
-                    <div style="font-size:26px;font-weight:700;color:#1F4E79">{int(row['case_count_1_year_total']):,}</div>
-                    <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">predicted cases / year</div>
+                    <div style="font-size:26px;font-weight:700;color:#1F4E79">{int(row[cases_col]):,}</div>
+                    <div style="font-size:11px;color:#9CA3AF;margin-bottom:10px">predicted cases ({horizon.replace("_", " ")})</div>
                     <div style="font-size:12px;color:#6B7280">🛏 {int(beds_v):,} bed-days &nbsp;|&nbsp; ⏱ {los_v:.1f}d LOS</div>
                     <div style="margin-top:8px">
                         <span style="background:#EFF6FF;color:#1F4E79;font-size:11px;padding:3px 10px;border-radius:12px;font-weight:600">{row['disease_category']}</span>
@@ -834,8 +849,8 @@ def page_top_diseases(data, df_summary, selected_cat):
                 """, unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.markdown("### Top 3 by Bed Demand (3 Years)")
-        top3_beds = df.nlargest(3, "bed_days_3_years_total").reset_index(drop=True)
+        st.markdown(f"### Top 3 by Bed Demand ({horizon.replace('_', ' ').title()})")
+        top3_beds = df.nlargest(3, beds_col).reset_index(drop=True)
         cols2 = st.columns(3)
         for i, (_, row) in enumerate(top3_beds.iterrows()):
             with cols2[i]:
@@ -844,39 +859,35 @@ def page_top_diseases(data, df_summary, selected_cat):
                 <div style="background:white;border-radius:12px;padding:16px;box-shadow:0 3px 10px rgba(0,0,0,0.09);text-align:center">
                     <div style="font-size:28px;margin-bottom:6px">{badge_labels[i]}</div>
                     <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">{name_s}</div>
-                    <div style="font-size:22px;font-weight:700;color:#C55A11">{int(row['bed_days_3_years_total']):,}</div>
-                    <div style="font-size:11px;color:#9CA3AF">bed-days over 3 years</div>
+                    <div style="font-size:22px;font-weight:700;color:#C55A11">{int(row[beds_col]):,}</div>
+                    <div style="font-size:11px;color:#9CA3AF">bed-days ({horizon.replace("_", " ")})</div>
                 </div>
                 """, unsafe_allow_html=True)
 
     with tab2:
         col_left, col_right = st.columns(2)
         with col_left:
-            top10_cases = df.nlargest(10, "case_count_1_year_total")[["disease_name", "case_count_1_year_total", "disease_category"]].dropna()
-            fig = top_n_bar(top10_cases, "case_count_1_year_total", "disease_name", "Top 10 by Forecast Cases (1 Year)", color_col="disease_category", n=10)
+            top10_cases = df.nlargest(10, cases_col)[["disease_name", cases_col, "disease_category"]].dropna()
+            fig = top_n_bar(top10_cases, cases_col, "disease_name", f"Top 10 by Forecast Cases ({horizon.replace('_', ' ').title()})", color_col="disease_category", n=10)
             st.plotly_chart(fig, use_container_width=True)
         with col_right:
-            top10_beds = df.nlargest(10, "bed_days_3_years_total")[["disease_name", "bed_days_3_years_total", "disease_category"]].dropna()
-            fig2 = top_n_bar(top10_beds, "bed_days_3_years_total", "disease_name", "Top 10 by Bed-Days Demand (3 Years)", color_col="disease_category", n=10)
+            top10_beds = df.nlargest(10, beds_col)[["disease_name", beds_col, "disease_category"]].dropna()
+            fig2 = top_n_bar(top10_beds, beds_col, "disease_name", f"Top 10 by Bed-Days Demand ({horizon.replace('_', ' ').title()})", color_col="disease_category", n=10)
             st.plotly_chart(fig2, use_container_width=True)
 
         # Top 10 LOS
-        top10_los = df.nlargest(10, "avg_los_1_year_avg")[["disease_name", "avg_los_1_year_avg", "disease_category"]].dropna()
-        fig3 = top_n_bar(top10_los, "avg_los_1_year_avg", "disease_name", "Top 10 by Avg Length of Stay (days)", color_col="disease_category", n=10)
+        top10_los = df.nlargest(10, los_col)[["disease_name", los_col, "disease_category"]].dropna()
+        fig3 = top_n_bar(top10_los, los_col, "disease_name", f"Top 10 by Avg Length of Stay ({horizon.replace('_', ' ').title()})", color_col="disease_category", n=10)
         st.plotly_chart(fig3, use_container_width=True)
 
     with tab3:
-        display_df = df[["disease_name", "disease_category",
-                         "case_count_1_year_total", "bed_days_1_year_total",
-                         "avg_los_1_year_avg", "case_count_3_years_total",
-                         "bed_days_3_years_total", "case_count_MAPE_%"]].copy()
-        display_df.columns = ["Disease", "Category", "Cases 1Y", "Bed-Days 1Y",
-                               "Avg LOS (days)", "Cases 3Y", "Bed-Days 3Y", "MAPE %"]
-        display_df = display_df.sort_values("Cases 1Y", ascending=False).reset_index(drop=True)
+        display_df = df[["disease_name", "disease_category", cases_col, beds_col, los_col, "case_count_MAPE_%"]].copy()
+        display_df.columns = ["Disease", "Category", "Cases", "Bed-Days", "Avg LOS (days)", "MAPE %"]
+        display_df = display_df.sort_values("Cases", ascending=False).reset_index(drop=True)
         st.dataframe(display_df, use_container_width=True, height=500)
 
 
-def page_growth_trends(data, df_summary, df_trend, selected_cat):
+def page_growth_trends(data, df_summary, df_trend, selected_cat, horizon):
     st.markdown('<div class="page-title">📈 Growth & Trends</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Diseases with the fastest predicted growth over the next 3 years</div>', unsafe_allow_html=True)
 
@@ -936,15 +947,16 @@ def page_growth_trends(data, df_summary, df_trend, selected_cat):
 
     # Scatter: growth vs volume
     st.markdown('<div class="section-header">Growth Rate vs Case Volume — Bubble Chart</div>', unsafe_allow_html=True)
-    merged = df_t.merge(df_summary[["disease_name", "case_count_1_year_total", "bed_days_1_year_total"]], on="disease_name", how="left").dropna()
+    cases_col, beds_col, _ = metric_columns_for_horizon(horizon)
+    merged = df_t.merge(df_summary[["disease_name", cases_col, beds_col]], on="disease_name", how="left").dropna()
     fig3 = px.scatter(
         merged.head(60),
         x="growth_%",
-        y="case_count_1_year_total",
-        size="bed_days_1_year_total",
+        y=cases_col,
+        size=beds_col,
         color="disease_category",
         hover_name="disease_name",
-        labels={"growth_%": "Predicted Growth % (3yr)", "case_count_1_year_total": "Forecast Cases (1yr)"},
+        labels={"growth_%": "Predicted Growth % (3yr)", cases_col: f"Forecast Cases ({horizon.replace('_', ' ')})"},
         title="Growth Rate vs Volume — bubble size = bed-days",
         height=420,
         color_discrete_sequence=px.colors.qualitative.Set2,
@@ -955,58 +967,66 @@ def page_growth_trends(data, df_summary, df_trend, selected_cat):
     st.plotly_chart(fig3, use_container_width=True)
 
 
-def page_alerts(data, df_summary, df_trend):
+def page_alerts(data, df_summary, df_trend, selected_cat, horizon):
     st.markdown('<div class="page-title">🚨 Alerts & Insights</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-subtitle">Automatically detected patterns that require attention</div>', unsafe_allow_html=True)
 
     # Thresholds
-    p90_cases = df_summary["case_count_1_year_total"].quantile(0.90)
-    p90_beds  = df_summary["bed_days_1_year_total"].quantile(0.90)
-    p75_los   = df_summary["avg_los_1_year_avg"].quantile(0.75)
-    p90_growth = df_trend["growth_%"].quantile(0.90) if not df_trend.empty else 50
+    cases_col, beds_col, los_col = metric_columns_for_horizon(horizon)
+    base = df_summary.copy()
+    if selected_cat != "All":
+        base = base[base["disease_category"] == selected_cat]
+    trend_base = df_trend.copy()
+    if selected_cat != "All":
+        trend_base = trend_base[trend_base["disease_category"] == selected_cat]
 
-    high_demand   = df_summary[df_summary["case_count_1_year_total"] >= p90_cases].sort_values("case_count_1_year_total", ascending=False)
-    high_beds     = df_summary[df_summary["bed_days_1_year_total"] >= p90_beds].sort_values("bed_days_1_year_total", ascending=False)
-    long_stay     = df_summary[df_summary["avg_los_1_year_avg"] >= p75_los].sort_values("avg_los_1_year_avg", ascending=False).head(10)
-    fast_growing  = df_trend[df_trend["growth_%"] >= p90_growth].head(8)
+    p90_cases = base[cases_col].quantile(0.90)
+    p90_beds = base[beds_col].quantile(0.90)
+    p75_los = base[los_col].quantile(0.75)
+    p90_growth = trend_base["growth_%"].quantile(0.90) if not trend_base.empty else 50
+
+    high_demand = base[base[cases_col] >= p90_cases].sort_values(cases_col, ascending=False)
+    high_beds = base[base[beds_col] >= p90_beds].sort_values(beds_col, ascending=False)
+    long_stay = base[base[los_col] >= p75_los].sort_values(los_col, ascending=False).head(10)
+    fast_growing = trend_base[trend_base["growth_%"] >= p90_growth].head(8)
 
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown(f'<div class="section-header">🔴 High Case Volume Alerts ({len(high_demand)})</div>', unsafe_allow_html=True)
-        st.markdown(alert_box(f"<b>Threshold:</b> {int(p90_cases):,}+ cases/year (top 10% of all diseases)", "high"), unsafe_allow_html=True)
+        st.markdown(alert_box(f"<b>Threshold:</b> {int(p90_cases):,}+ cases ({horizon.replace('_', ' ')}, top 10%)", "high"), unsafe_allow_html=True)
         for _, row in high_demand.head(8).iterrows():
             name_s = row["disease_name"][:50] + "…" if len(row["disease_name"]) > 50 else row["disease_name"]
             st.markdown(alert_box(
                 f"⚠️ <b>{name_s}</b><br>"
                 f"Category: {row['disease_category']} &nbsp;|&nbsp; "
-                f"Forecast: <b>{int(row['case_count_1_year_total']):,}</b> cases/year &nbsp;|&nbsp; "
-                f"LOS: <b>{row['avg_los_1_year_avg']:.1f}</b> days",
+                f"Forecast: <b>{int(row[cases_col]):,}</b> cases ({horizon.replace('_', ' ')}) &nbsp;|&nbsp; "
+                f"LOS: <b>{row[los_col]:.1f}</b> days",
                 "high"
             ), unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(f'<div class="section-header">🟡 Long Stay Diseases ({len(long_stay)})</div>', unsafe_allow_html=True)
-        st.markdown(alert_box(f"<b>Threshold:</b> {p75_los:.1f}+ days average LOS (top 25%)", "medium"), unsafe_allow_html=True)
+        st.markdown(alert_box(f"<b>Threshold:</b> {p75_los:.1f}+ days average LOS ({horizon.replace('_', ' ')}, top 25%)", "medium"), unsafe_allow_html=True)
         for _, row in long_stay.iterrows():
             name_s = row["disease_name"][:50] + "…" if len(row["disease_name"]) > 50 else row["disease_name"]
             st.markdown(alert_box(
                 f"🛏️ <b>{name_s}</b><br>"
-                f"Avg LOS: <b>{row['avg_los_1_year_avg']:.1f} days</b> &nbsp;|&nbsp; "
-                f"Bed-days/year: {int(row['bed_days_1_year_total']):,}",
+                f"Avg LOS: <b>{row[los_col]:.1f} days</b> &nbsp;|&nbsp; "
+                f"Bed-days: {int(row[beds_col]):,}",
                 "medium"
             ), unsafe_allow_html=True)
 
     with col2:
         st.markdown(f'<div class="section-header">🔴 High Bed Demand Alerts ({len(high_beds)})</div>', unsafe_allow_html=True)
-        st.markdown(alert_box(f"<b>Threshold:</b> {int(p90_beds):,}+ bed-days/year (top 10%)", "high"), unsafe_allow_html=True)
+        st.markdown(alert_box(f"<b>Threshold:</b> {int(p90_beds):,}+ bed-days ({horizon.replace('_', ' ')}, top 10%)", "high"), unsafe_allow_html=True)
         for _, row in high_beds.head(8).iterrows():
             name_s = row["disease_name"][:50] + "…" if len(row["disease_name"]) > 50 else row["disease_name"]
             st.markdown(alert_box(
                 f"🏥 <b>{name_s}</b><br>"
-                f"Bed-days/year: <b>{int(row['bed_days_1_year_total']):,}</b> &nbsp;|&nbsp; "
-                f"Cases: {int(row['case_count_1_year_total']):,} &nbsp;|&nbsp; "
-                f"LOS: {row['avg_los_1_year_avg']:.1f}d",
+                f"Bed-days: <b>{int(row[beds_col]):,}</b> &nbsp;|&nbsp; "
+                f"Cases: {int(row[cases_col]):,} &nbsp;|&nbsp; "
+                f"LOS: {row[los_col]:.1f}d",
                 "high"
             ), unsafe_allow_html=True)
 
@@ -1051,16 +1071,20 @@ def main():
     if selected_cat != "All":
         df_filtered = df_summary[df_summary["disease_category"] == selected_cat]
 
+    df_trend_filtered = df_trend.copy()
+    if selected_cat != "All":
+        df_trend_filtered = df_trend[df_trend["disease_category"] == selected_cat]
+
     if page == "📊 Overview":
-        page_overview(data, df_filtered, df_trend)
+        page_overview(data, df_filtered, df_trend_filtered, horizon)
     elif page == "🔍 Disease Explorer":
-        page_disease_explorer(data, df_summary, horizon)
+        page_disease_explorer(data, df_summary, horizon, selected_cat)
     elif page == "🏆 Top Diseases":
-        page_top_diseases(data, df_summary, selected_cat)
+        page_top_diseases(data, df_summary, selected_cat, horizon)
     elif page == "📈 Growth & Trends":
-        page_growth_trends(data, df_summary, df_trend, selected_cat)
+        page_growth_trends(data, df_summary, df_trend, selected_cat, horizon)
     elif page == "🚨 Alerts":
-        page_alerts(data, df_summary, df_trend)
+        page_alerts(data, df_summary, df_trend, selected_cat, horizon)
 
     # Always render the floating chat bubble (in main area, not sidebar)
     render_floating_chat(data)
